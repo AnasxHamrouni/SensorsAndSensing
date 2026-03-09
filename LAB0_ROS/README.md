@@ -23,16 +23,3 @@ source install/setup.bash
 Current package path:
 
 - `ros2_ws/src/pkg_Anas`
-
-## What to Commit
-
-- Source code under `ros2_ws/src/`
-- Package metadata files (`package.xml`, `setup.py`, `setup.cfg`)
-- Launch/config/resource files and documentation
-
-## What Not to Commit
-
-- `ros2_ws/build/`
-- `ros2_ws/install/`
-- `ros2_ws/log/`
-- Python cache files (`__pycache__`, `*.pyc`)
