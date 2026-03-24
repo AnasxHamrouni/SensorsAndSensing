@@ -11,12 +11,17 @@ def generate_launch_description():
             output='screen',
             parameters=[
                 {'input_topic': '/livox/lidar'},
-                {'voxel_size': 0.05},
-                {'distance_threshold': 0.02},
+                {'voxel_size': 0.08},
+                {'distance_threshold': 0.05},
                 {'ransac_n': 3},
-                {'num_iterations': 1000},
-                {'max_planes': 5},
-                {'min_inlier_ratio': 0.05},
+                {'num_iterations': 1500},
+                {'floor_normal_min_abs_z': 0.80},
+                {'wall_normal_max_abs_z': 0.50},
+                {'max_walls': 6},
+                {'min_floor_inliers': 500},
+                {'min_wall_inliers': 300},
+                {'remove_ceiling': True},
+                {'ceiling_percentile': 0.98},
             ],
         )
     ])

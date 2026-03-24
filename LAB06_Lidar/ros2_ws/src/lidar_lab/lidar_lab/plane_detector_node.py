@@ -27,16 +27,21 @@ class PlaneDetectorNode(Node):
 
         self.declare_parameter('input_topic', '/livox/lidar')
         self.declare_parameter('voxel_size', 0.05)
-        self.declare_parameter('distance_threshold', 0.02)
+        self.declare_parameter('distance_threshold', 0.03)
         self.declare_parameter('ransac_n', 3)
-        self.declare_parameter('num_iterations', 1000)
-        self.declare_parameter('max_planes', 5)
-        self.declare_parameter('min_inlier_ratio', 0.05)
-        self.declare_parameter('floor_normal_min_abs_z', 0.85)
-        self.declare_parameter('wall_normal_max_abs_z', 0.35)
-        self.declare_parameter('min_points_to_process', 200)
+        self.declare_parameter('num_iterations', 1500)
 
-        input_topic = self.get_parameter('input_topic').value
+        self.declare_parameter('floor_normal_min_abs_z', 0.80)
+        self.declare_parameter('wall_normal_max_abs_z', 0.45)
+        self.declare_parameter('max_walls', 6)
+
+        self.declare_parameter('min_points_to_process', 200)
+        self.declare_parameter('min_floor_inliers', 500)
+        self.declare_parameter('min_wall_inliers', 300)
+        self.declare_parameter('remove_ceiling', True)
+        self.declare_parameter('ceiling_percentile', 0.98)
+
+        input_topic = str(self.get_parameter('input_topic').value)
 
         self.subscription = self.create_subscription(
             PointCloud2,
@@ -64,8 +69,13 @@ class PlaneDetectorNode(Node):
         down = self.voxel_downsample(xyz, float(self.get_parameter('voxel_size').value))
         t_down = time.perf_counter() - t_down_start
 
+        if bool(self.get_parameter('remove_ceiling').value) and down.shape[0] > 0:
+            ceil_q = float(self.get_parameter('ceiling_percentile').value)
+            z_hi = np.quantile(down[:, 2], ceil_q)
+            down = down[down[:, 2] <= z_hi]
+
         t_ransac_start = time.perf_counter()
-        planes, objects = self.extract_planes_iterative(down)
+        planes, objects = self.extract_planes_two_stage(down)
         t_ransac = time.perf_counter() - t_ransac_start
 
         floor_points = [p.points for p in planes if p.label == 'floor']
@@ -116,59 +126,75 @@ class PlaneDetectorNode(Node):
         down = sums / counts
         return down.astype(np.float32)
 
-    def extract_planes_iterative(self, xyz: np.ndarray) -> Tuple[List[PlaneResult], np.ndarray]:
+    def extract_planes_two_stage(self, xyz: np.ndarray) -> Tuple[List[PlaneResult], np.ndarray]:
         distance_threshold = float(self.get_parameter('distance_threshold').value)
         ransac_n = int(self.get_parameter('ransac_n').value)
         num_iterations = int(self.get_parameter('num_iterations').value)
-        max_planes = int(self.get_parameter('max_planes').value)
-        min_inlier_ratio = float(self.get_parameter('min_inlier_ratio').value)
 
         floor_normal_min_abs_z = float(self.get_parameter('floor_normal_min_abs_z').value)
         wall_normal_max_abs_z = float(self.get_parameter('wall_normal_max_abs_z').value)
+        max_walls = int(self.get_parameter('max_walls').value)
+        min_floor_inliers = int(self.get_parameter('min_floor_inliers').value)
+        min_wall_inliers = int(self.get_parameter('min_wall_inliers').value)
+
+        if ransac_n != 3:
+            self.get_logger().warn('Only ransac_n=3 is supported; using 3.')
 
         remaining = xyz.copy()
         planes: List[PlaneResult] = []
 
-        for _ in range(max_planes):
-            if remaining.shape[0] < ransac_n:
+        floor_normal, _, floor_idx = self.fit_plane_ransac_oriented(
+            remaining,
+            distance_threshold,
+            num_iterations,
+            orientation='floor',
+            floor_normal_min_abs_z=floor_normal_min_abs_z,
+            wall_normal_max_abs_z=wall_normal_max_abs_z,
+        )
+        if floor_idx.size >= min_floor_inliers:
+            floor_pts = remaining[floor_idx]
+            floor_centroid = np.mean(floor_pts, axis=0)
+            planes.append(
+                PlaneResult(
+                    points=floor_pts,
+                    normal=floor_normal,
+                    centroid=floor_centroid,
+                    label='floor',
+                )
+            )
+            mask = np.ones(remaining.shape[0], dtype=bool)
+            mask[floor_idx] = False
+            remaining = remaining[mask]
+
+        for _ in range(max_walls):
+            if remaining.shape[0] < 3:
                 break
 
-            if ransac_n != 3:
-                self.get_logger().warn('Only ransac_n=3 is supported; using 3.')
-
-            normal, d, inlier_idx = self.fit_plane_ransac(
+            wall_normal, _, wall_idx = self.fit_plane_ransac_oriented(
                 remaining,
                 distance_threshold,
                 num_iterations,
+                orientation='wall',
+                floor_normal_min_abs_z=floor_normal_min_abs_z,
+                wall_normal_max_abs_z=wall_normal_max_abs_z,
             )
 
-            if inlier_idx.size == 0:
+            if wall_idx.size < min_wall_inliers:
                 break
 
-            inlier_ratio = inlier_idx.size / float(remaining.shape[0])
-            if inlier_ratio < min_inlier_ratio:
-                break
-
-            plane_pts = remaining[inlier_idx]
-            norm = np.linalg.norm(normal)
-            if norm == 0.0:
-                label = 'other'
-                normal = np.array([0.0, 0.0, 1.0])
-            else:
-                normal = normal / norm
-                abs_nz = abs(normal[2])
-                if abs_nz >= floor_normal_min_abs_z:
-                    label = 'floor'
-                elif abs_nz <= wall_normal_max_abs_z:
-                    label = 'wall'
-                else:
-                    label = 'other'
-
-            centroid = np.mean(plane_pts, axis=0)
-            planes.append(PlaneResult(points=plane_pts, normal=normal, centroid=centroid, label=label))
+            wall_pts = remaining[wall_idx]
+            wall_centroid = np.mean(wall_pts, axis=0)
+            planes.append(
+                PlaneResult(
+                    points=wall_pts,
+                    normal=wall_normal,
+                    centroid=wall_centroid,
+                    label='wall',
+                )
+            )
 
             mask = np.ones(remaining.shape[0], dtype=bool)
-            mask[inlier_idx] = False
+            mask[wall_idx] = False
             remaining = remaining[mask]
 
         return planes, remaining
@@ -184,11 +210,14 @@ class PlaneDetectorNode(Node):
         d = -np.dot(normal, p1)
         return normal, float(d)
 
-    def fit_plane_ransac(
+    def fit_plane_ransac_oriented(
         self,
         points: np.ndarray,
         distance_threshold: float,
         num_iterations: int,
+        orientation: str,
+        floor_normal_min_abs_z: float,
+        wall_normal_max_abs_z: float,
     ) -> Tuple[np.ndarray, float, np.ndarray]:
         num_points = points.shape[0]
         if num_points < 3:
@@ -203,6 +232,12 @@ class PlaneDetectorNode(Node):
             sample_idx = rng.choice(num_points, size=3, replace=False)
             normal, d = self.plane_from_points(points[sample_idx])
             if normal is None:
+                continue
+
+            abs_nz = abs(float(normal[2]))
+            if orientation == 'floor' and abs_nz < floor_normal_min_abs_z:
+                continue
+            if orientation == 'wall' and abs_nz > wall_normal_max_abs_z:
                 continue
 
             distances = np.abs(points @ normal + d)
@@ -232,9 +267,15 @@ class PlaneDetectorNode(Node):
             refined_normal = refined_normal / refined_norm
             refined_d = -np.dot(refined_normal, centroid)
 
+        abs_nz_refined = abs(float(refined_normal[2]))
+        if orientation == 'floor' and abs_nz_refined < floor_normal_min_abs_z:
+            return np.zeros(3, dtype=np.float64), 0.0, np.array([], dtype=np.int64)
+        if orientation == 'wall' and abs_nz_refined > wall_normal_max_abs_z:
+            return np.zeros(3, dtype=np.float64), 0.0, np.array([], dtype=np.int64)
+
         refined_dist = np.abs(points @ refined_normal + refined_d)
         refined_inliers = np.where(refined_dist <= distance_threshold)[0]
-        return refined_normal, float(refined_d), refined_inliers.astype(np.int64)
+        return refined_normal.astype(np.float64), float(refined_d), refined_inliers.astype(np.int64)
 
     def build_markers(self, planes: List[PlaneResult], ref_msg: PointCloud2) -> MarkerArray:
         marker_array = MarkerArray()

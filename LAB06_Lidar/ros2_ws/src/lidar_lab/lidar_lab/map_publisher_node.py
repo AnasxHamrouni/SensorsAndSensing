@@ -18,7 +18,7 @@ class MapPublisherNode(Node):
 
         self.declare_parameter(
             'map_path',
-            '/home/nasta/Documents/GitHub/SensorsAndSensing/LAB06_Lidar/room_map_3d_colored.ply',
+            '/home/nasta/Documents/GitHub/SensorsAndSensing/LAB06_Lidar/room_map_3d_colored_tuned.ply',
         )
         self.declare_parameter('map_topic', '/map_3d')
         self.declare_parameter('frame_id', 'livox_frame')
