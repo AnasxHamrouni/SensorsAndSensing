@@ -21,7 +21,3 @@ venv/
 # Common local artifacts
 *.log
 *.tmp
-
-# LAB06 LiDAR generated map outputs
-LAB06_Lidar/raw_merged_unaligned.ply
-LAB06_Lidar/room_map_3d*.ply
