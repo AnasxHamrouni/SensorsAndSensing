@@ -1,3 +1,27 @@
 Fraden_Handbook_of_modern_sensors_4ed.pdf
 lab_Encoders_timerTask.mov
 snapshots/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ROS2 / colcon generated artifacts
+**/ros2_ws/build/
+**/ros2_ws/install/
+**/ros2_ws/log/
+
+# Common local artifacts
+*.log
+*.tmp
+
+# LAB06 LiDAR generated map outputs
+LAB06_Lidar/raw_merged_unaligned.ply
+LAB06_Lidar/room_map_3d*.ply
