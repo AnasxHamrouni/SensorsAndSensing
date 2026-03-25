@@ -120,6 +120,12 @@ Generated outputs include:
 - `room_map_3d_tuned.ply`
 - `room_map_3d_colored_tuned.ply`
 
+Color mapping note for colored maps:
+
+- Red (R) points correspond to `snapshot_1`
+- Green (G) points correspond to `snapshot_2`
+- Blue (B) points correspond to `snapshot_4`
+
 ### 3 Publish combined map
 
 ```bash
