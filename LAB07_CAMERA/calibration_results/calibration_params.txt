@@ -1,0 +1,14 @@
+CAMERA CALIBRATION PARAMETERS
+==================================================
+Chessboard: (9, 6) (inner corners)
+Square Size: 25.0 mm
+Images used: 50
+Mean Reprojection Error: 0.1377 px
+
+Camera Matrix (K):
+[[1.80209356e+03 0.00000000e+00 1.07106604e+03]
+ [0.00000000e+00 1.79494729e+03 5.34320788e+02]
+ [0.00000000e+00 0.00000000e+00 1.00000000e+00]]
+
+Distortion Coefficients:
+[ 0.04172267  0.22634173  0.00206717  0.00347034 -0.8628757 ]
