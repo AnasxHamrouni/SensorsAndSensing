@@ -1,0 +1,29 @@
+ekf_filter_node:
+  ros__parameters:
+    # Keep EKF frequency <= IMU input rate to reduce stale updates.
+    frequency: 50.0
+    sensor_timeout: 0.1
+    two_d_mode: false
+    publish_tf: true
+
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    # With one EKF in this lab, world_frame=odom is the standard local setup.
+    world_frame: odom
+
+    imu0: /imu/data
+    # 15 booleans map to robot_localization state variables in fixed order.
+    imu0_config: [
+      false, false, false,
+      false, false, false,
+      false, false, false,
+      true, true, true,
+      false, false, false
+    ]
+
+    imu0_differential: false
+    imu0_relative: false
+    imu0_queue_size: 20
+    # Madgwick orientation enables gravity compensation before fusion.
+    imu0_remove_gravitational_acceleration: true

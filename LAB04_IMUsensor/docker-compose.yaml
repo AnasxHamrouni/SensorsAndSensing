@@ -1,0 +1,38 @@
+x-common: &common-setup
+  # Host network avoids ROS2 DDS discovery issues behind Docker bridge/NAT.
+  network_mode: host
+  # Needed for direct hardware access on the Pi (I2C, video, audio).
+  privileged: true
+  volumes:
+    # Bind-mount repository into ROS workspace source tree inside container.
+    - ${HOME}/.Xauthority:/home/fabian/.Xauthority:rw
+    - .:/home/fabian/ros2_ws/src:rw
+    - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    - /dev/dri:/dev/dri:rw
+    - /run/user/1000/pulse:/run/user/1000/pulse
+  environment:
+    - DISPLAY
+    - QT_X11_NO_MITSHM=1
+    - XAUTHORITY=/home/fabian/.Xauthority
+  working_dir: /home/fabian/ros2_ws
+
+services:
+  terminal:
+    <<: *common-setup
+    image: fabook/iros:arm-lite-v0.0.1
+    stdin_open: true
+    tty: true
+    devices:
+      - "/dev/video0:/dev/video0"
+      - "/dev/video1:/dev/video1"
+      - "/dev/snd:/dev/snd"
+      # Expose I2C bus so MPU6050 can be accessed from ROS2 node.
+      - "/dev/i2c-1:/dev/i2c-1"
+    group_add:
+      - "988"
+      - "video"
+      - "44"
+    command: [
+      "/bin/bash","-lc","
+      exec bash"
+      ]

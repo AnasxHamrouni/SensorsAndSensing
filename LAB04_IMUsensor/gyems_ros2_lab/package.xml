@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>gyems_ros2_lab</name>
+  <version>0.1.0</version>
+  <description>Extra-task skeleton for BLDC driver, rail controller, odometry, and EKF fusion.</description>
+  <maintainer email="student@example.com">Lab Student</maintainer>
+  <license>Apache-2.0</license>
+
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>tf2_ros</depend>
+
+  <exec_depend>robot_localization</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
