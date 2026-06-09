@@ -1,0 +1,3 @@
+[submodule "external/Sensors-and-Sensing-Labs"]
+	path = external/Sensors-and-Sensing-Labs
+	url = https://github.com/AnasxHamrouni/Sensors-and-Sensing-Labs.git
